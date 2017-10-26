@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.12
+VisualStudioVersion = 15.0.26228.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewPlatform.Flexberry.ORM.MongoDbDataService", "NewPlatform.Flexberry.ORM.MongoDbDataService\NewPlatform.Flexberry.ORM.MongoDbDataService.csproj", "{98F968BE-A11A-4733-AC65-D89425486C68}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewPlatform.Flexberry.ORM.MongoDbDataService.Tests", "NewPlatform.Flexberry.ORM.MongoDbDataService.Tests\NewPlatform.Flexberry.ORM.MongoDbDataService.Tests.csproj", "{21470816-DBD6-4035-8860-A6E796D64046}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Open Source", "Open Source", "{F1839B86-9688-44B1-87B3-F348BB0DF0DC}"
 	ProjectSection(SolutionItems) = preProject
@@ -15,6 +13,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Open Source", "Open Source"
 		LICENSE.md = LICENSE.md
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewPlatform.Flexberry.ORM.MongoDbDataService.Tests", "NewPlatform.Flexberry.ORM.MongoDbDataService.Tests\NewPlatform.Flexberry.ORM.MongoDbDataService.Tests.csproj", "{FD5152F2-CE2A-4E77-8127-6248399A1506}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewPlatform.Flexberry.ORM.MongoDbDataService.Tests.Objects", "NewPlatform.Flexberry.ORM.MongoDbDataService.Tests.Objects\NewPlatform.Flexberry.ORM.MongoDbDataService.Tests.Objects.csproj", "{106C9CE4-403C-4D7E-AE05-13D1A2AF67F3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,16 +28,20 @@ Global
 		{98F968BE-A11A-4733-AC65-D89425486C68}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98F968BE-A11A-4733-AC65-D89425486C68}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98F968BE-A11A-4733-AC65-D89425486C68}.Release|Any CPU.Build.0 = Release|Any CPU
-		{21470816-DBD6-4035-8860-A6E796D64046}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{21470816-DBD6-4035-8860-A6E796D64046}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{21470816-DBD6-4035-8860-A6E796D64046}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{21470816-DBD6-4035-8860-A6E796D64046}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD5152F2-CE2A-4E77-8127-6248399A1506}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD5152F2-CE2A-4E77-8127-6248399A1506}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD5152F2-CE2A-4E77-8127-6248399A1506}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD5152F2-CE2A-4E77-8127-6248399A1506}.Release|Any CPU.Build.0 = Release|Any CPU
+		{106C9CE4-403C-4D7E-AE05-13D1A2AF67F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{106C9CE4-403C-4D7E-AE05-13D1A2AF67F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{106C9CE4-403C-4D7E-AE05-13D1A2AF67F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{106C9CE4-403C-4D7E-AE05-13D1A2AF67F3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		EnterpriseLibraryConfigurationToolBinariesPath = packages\Unity.2.1.505.2\lib\NET35
 		SolutionGuid = {A6315904-5D95-4F3A-B470-6E5A99405502}
+		EnterpriseLibraryConfigurationToolBinariesPath = packages\Unity.2.1.505.2\lib\NET35
 	EndGlobalSection
 EndGlobal

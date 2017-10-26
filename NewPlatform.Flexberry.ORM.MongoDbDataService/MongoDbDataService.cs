@@ -7,16 +7,59 @@
     using ICSSoft.STORMNET.FunctionalLanguage;
     using ICSSoft.STORMNET.FunctionalLanguage.SQLWhere;
     using ICSSoft.STORMNET.Security;
+    using MongoDB.Driver;
+    using System.Linq;
+    using MongoDB.Bson;
+    using Microsoft.Practices.Unity;
+    using ICSSoft.Services;
 
     /// <summary>
     /// Flexberry ORM DataService for MongoDB Storage.
     /// </summary>
     public class MongoDbDataService : IDataService
     {
-        public string CustomizationString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        /// <summary>
+        /// Приватное поле для <see cref="SecurityManager"/>.
+        /// </summary>
+        private ISecurityManager _securityManager;
+
+        /// <summary>
+        /// The prv instance id.
+        /// </summary>
+        private Guid prvInstanceId = Guid.NewGuid();
+
+
+        /// <summary>
+        /// Строка подключения в формате mongodb://[username:password@]hostname[:port][/[database][?options]].
+        /// </summary>
+        public string CustomizationString
+        {
+            get;
+            set;
+        }
         public TypeUsage TypeUsage { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        public ISecurityManager SecurityManager => throw new NotImplementedException();
+        /// <summary>
+        /// Сервис подсистемы полномочий, который применяется для проверки прав доступа. Рекомендуется устанавливать его через конструктор, в противном случае используется настройка в Unity.
+        /// </summary>
+        public ISecurityManager SecurityManager
+        {
+            get
+            {
+                if (_securityManager == null)
+                {
+                    IUnityContainer container = UnityFactory.CreateContainer();
+                    _securityManager = container.Resolve<ISecurityManager>();
+                }
+
+                return _securityManager;
+            }
+
+            protected set
+            {
+                _securityManager = value;
+            }
+        }
 
         public IAuditService AuditService => throw new NotImplementedException();
 
@@ -35,9 +78,13 @@
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Ключ инстанции сервиса.
+        /// </summary>
+        /// <returns></returns>
         public Guid GetInstanceId()
         {
-            throw new NotImplementedException();
+            return prvInstanceId;
         }
 
         public int GetObjectsCount(LoadingCustomizationStruct customizationStruct)
@@ -77,7 +124,89 @@
 
         public void LoadObject(DataObject dobject)
         {
-            throw new NotImplementedException();
+            IMongoDatabase database = GetDataBase();
+            IMongoCollection<BsonDocument> collection = GetCollection(dobject, database);
+            string dobjectKey = GutGUIDValue(dobject.__PrimaryKey);
+
+            var filter = new BsonDocument() { { "uid", dobjectKey } };
+            var cursor = collection.Find(filter);
+
+            var obj = cursor.FirstOrDefault();
+
+            if (obj == null)
+                //ToDo: Согласовать с параметрами.
+                throw new TypeLoadException(string.Format("Объект c ключом {0} отсутствует в базе.", dobjectKey));
+
+            var dataObjectCache = new DataObjectCache();
+            var clearDataObject = true;
+            var view = new View(dobject.GetType(), View.ReadType.OnlyThatObject);
+            Type doType = dobject.GetType();
+            StorageStructForView[] StorageStruct = {Information.GetStorageStructForView(view, doType, StorageTypeEnum.SimpleStorage,
+                new Information.GetPropertiesInExpressionDelegate(GetPropertiesInExpression), GetType()) };
+
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
+            lc.View = view;
+            
+            object[][] resValue = new object[1][];
+            int rowIndex = 0;
+            resValue[rowIndex] = new object[view.Properties.Length + 2];
+            
+            for (int i = 0; i < view.Properties.Length; i++)
+            {
+                string propertyName = view.Properties[i].Name;
+                if (obj.Names.Contains(propertyName))
+                    if (obj[propertyName].IsInt32)
+                        resValue[rowIndex][i] = obj[propertyName].AsInt32;
+                    else if (obj[propertyName].IsInt64)
+                        resValue[rowIndex][i] = obj[propertyName].AsInt64;
+                    else if (obj[propertyName].IsString)
+                            resValue[rowIndex][i] = obj[propertyName].AsString;
+                        else
+                            throw new InvalidCastException();
+
+            }
+
+            resValue[rowIndex][view.Properties.Length] = Guid.Parse(obj[Information.GetPrimaryKeyStorageName(doType)].AsString); // Ключ
+            resValue[rowIndex][view.Properties.Length + 1] = 0; // Тип объекта?
+            Utils.ProcessingRowsetDataRef(resValue, new Type[] { doType }, StorageStruct, lc, new DataObject[] { dobject }, this, null, clearDataObject, dataObjectCache, SecurityManager);
+
+        }
+
+        public static string GutGUIDValue(Object obj)
+        {
+
+            //ToDo: Разобраться с ключами.
+            return obj.ToString().Replace("{", string.Empty).Replace("}", string.Empty).ToUpper();
+        }
+
+        private static IMongoCollection<BsonDocument> GetCollection(DataObject dobject, IMongoDatabase database)
+        {
+            string classStorageName = Information.GetClassStorageName(dobject.GetType());
+            IMongoCollection<BsonDocument> collection = database.GetCollection<BsonDocument>(classStorageName);
+            return collection;
+        }
+
+        private IMongoDatabase GetDataBase()
+        {
+            MongoClient client = new MongoClient(CustomizationString);
+            string dataBaseName = GetDataBaseName(client);
+            IMongoDatabase database = client.GetDatabase(dataBaseName);
+            return database;
+        }
+
+        /// <summary>
+        /// Получить имя базы данных.
+        /// </summary>
+        /// <param name="client"></param>
+        /// <returns></returns>
+        private static string GetDataBaseName(MongoClient client)
+        {
+            return client.Settings.Credentials.ToList()[0].Source;
+        }
+
+        public string[] GetPropertiesInExpression(string expression, string namespacewithpoint)
+        {
+            return Information.GetPropertiesInExpression(expression, namespacewithpoint);
         }
 
         public void LoadObject(string dataObjectViewName, DataObject dobject)
@@ -195,59 +324,148 @@
             throw new NotImplementedException();
         }
 
-        public void UpdateObject(ref DataObject dobject, DataObjectCache DataObjectCache)
+        virtual public void UpdateObject(ref DataObject dobject, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            UpdateObject(ref dobject, DataObjectCache, false);
         }
 
-        public void UpdateObject(DataObject dobject)
+        /// <summary>
+        /// Обновление объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется обновить</param>
+        virtual public void UpdateObject(ref DataObject dobject, DataObjectCache DataObjectCache, bool AlwaysThrowException)
         {
-            throw new NotImplementedException();
+            DataObject[] arr = new DataObject[] { dobject };
+            UpdateObjects(ref arr, DataObjectCache, AlwaysThrowException);
+            if (arr != null && arr.Length > 0)
+                dobject = arr[0];
+            else
+                dobject = null;
         }
 
-        public void UpdateObject(DataObject dobject, DataObjectCache DataObjectCache)
+        virtual public void UpdateObject(DataObject dobject)
         {
-            throw new NotImplementedException();
+            UpdateObject(dobject, false);
         }
 
-        public void UpdateObject(ref DataObject dobject, DataObjectCache DataObjectCache, bool AlwaysThrowException)
+        /// <summary>
+        /// Обновление объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется обновить</param>
+        virtual public void UpdateObject(DataObject dobject, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            UpdateObject(ref dobject, DataObjectCache);
         }
 
-        public void UpdateObject(DataObject dobject, bool AlwaysThrowException)
+        /// <summary>
+        /// Обновление объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется обновить</param>
+        virtual public void UpdateObject(ICSSoft.STORMNET.DataObject dobject, bool AlwaysThrowException)
         {
-            throw new NotImplementedException();
+            UpdateObject(ref dobject, new DataObjectCache(), AlwaysThrowException);
         }
 
-        public void UpdateObject(ref DataObject dobject)
+        virtual public void UpdateObject(ref ICSSoft.STORMNET.DataObject dobject)
         {
-            throw new NotImplementedException();
+            UpdateObject(ref dobject, false);
         }
 
-        public void UpdateObject(ref DataObject dobject, bool AlwaysThrowException)
+        /// <summary>
+        /// Обновление объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется обновить</param>
+        virtual public void UpdateObject(ref ICSSoft.STORMNET.DataObject dobject, bool AlwaysThrowException)
         {
-            throw new NotImplementedException();
+            UpdateObject(ref dobject, new DataObjectCache(), AlwaysThrowException);
         }
 
-        public void UpdateObjects(ref DataObject[] objects, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Обновить хранилище по объектам. При ошибках делается попытка возобновления транзакции с другого запроса, 
+        /// т.к. предполагается, что запросы должны быть выполнены в другом порядке.
+        /// </summary>
+        /// <param name="objects">Объекты данных для обновления.</param>
+        /// <param name="DataObjectCache">Кэш объектов данных.</param>
+        public virtual void UpdateObjects(ref DataObject[] objects, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            UpdateObjects(ref objects, DataObjectCache, false);
         }
 
         public void UpdateObjects(ref DataObject[] objects, DataObjectCache DataObjectCache, bool AlwaysThrowException)
         {
-            throw new NotImplementedException();
+            IMongoDatabase database = GetDataBase();
+
+            foreach (DataObject obj in objects)
+            {
+                Type objType = obj.GetType();
+                IMongoCollection<BsonDocument> collection = GetCollection(obj, database);
+
+                switch (obj.GetStatus())
+                {
+                    case ObjectStatus.Deleted:
+                        string objKey = GutGUIDValue(obj.__PrimaryKey);
+                        var filter = new BsonDocument() { { "uid", objKey} };
+                        var cursor = collection.Find(filter);
+
+                        collection.DeleteOne(filter);
+
+                        break;
+                    case ObjectStatus.Created:
+                        string[] properties = Information.GetPropertyNamesForInsert(objType);
+
+                        BsonDocument doc = new BsonDocument();
+
+                        foreach (string property in properties)
+                        {
+                            object value = Information.GetPropValueByName(obj, property);
+                            string propertyToStore = property;
+                            if (value != null)
+                            {
+                                if (property == "__PrimaryKey")
+                                    propertyToStore = Information.GetPrimaryKeyStorageName(objType);
+                                doc.Add(propertyToStore, ToBsonValue(value));
+                            }
+                        }
+                        
+                        collection.InsertOne(doc);
+                        break;
+                }
+            }
         }
 
-        public void UpdateObjects(ref DataObject[] objects)
+        private BsonValue ToBsonValue(object value)
         {
-            throw new NotImplementedException();
+            if (value == null)
+                return BsonNull.Value;
+            else if (value.GetType() == typeof(int))
+                return new BsonInt32((int)value);
+            else if (value.GetType() == typeof(long))
+                return new BsonInt64((long)value);
+            else if (value.GetType() == typeof(string))
+                return new BsonString((string)value);
+            else if (value.GetType() == typeof(ICSSoft.STORMNET.KeyGen.KeyGuid))
+                return GutGUIDValue(value);
+            else
+                throw new NotImplementedException();
         }
 
-        public void UpdateObjects(ref DataObject[] objects, bool AlwaysThrowException)
+        /// <summary>
+        /// Обновить хранилище по объектам.
+        /// </summary>
+        /// <param name="objects">Объекты данных для обновления.</param>
+        public virtual void UpdateObjects(ref DataObject[] objects)
         {
-            throw new NotImplementedException();
+            UpdateObjects(ref objects, new DataObjectCache());
+        }
+
+        /// <summary>
+        /// Обновить хранилище по объектам.
+        /// </summary>
+        /// <param name="objects">Объекты данных для обновления.</param>
+        /// <param name="AlwaysThrowException">Если произошла ошибка в базе данных, не пытаться выполнять других запросов, сразу взводить ошибку и откатывать транзакцию.</param>
+        public virtual void UpdateObjects(ref DataObject[] objects, bool AlwaysThrowException)
+        {
+            UpdateObjects(ref objects, new DataObjectCache(), AlwaysThrowException);
         }
     }
 }
