@@ -12,12 +12,24 @@
     using MongoDB.Bson;
     using Microsoft.Practices.Unity;
     using ICSSoft.Services;
+    using ICSSoft.STORMNET.KeyGen;
+    using System.Collections.Generic;
 
     /// <summary>
     /// Flexberry ORM DataService for MongoDB Storage.
     /// </summary>
     public class MongoDbDataService : IDataService
     {
+        private ChangeViewForTypeDelegate fchangeViewForTypeDelegate = null;
+
+        /// <summary>
+        /// Construct data service with default settings.
+        /// </summary>
+        public MongoDbDataService()
+        {
+            // 
+            BsonDefaults.GuidRepresentation = GuidRepresentation.Standard;
+        }
         /// <summary>
         /// Приватное поле для <see cref="SecurityManager"/>.
         /// </summary>
@@ -92,96 +104,208 @@
             throw new NotImplementedException();
         }
 
-        public void LoadObject(DataObject dobject, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        /// <param name="ClearDataObject">очищать ли объект</param>
+        /// <param name="CheckExistingObject">проверять ли существование объекта в хранилище</param>
+        virtual public void LoadObject(
+            ICSSoft.STORMNET.DataObject dobject, bool ClearDataObject, bool CheckExistingObject, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            LoadObject(new View(dobject.GetType(), View.ReadType.OnlyThatObject), dobject, ClearDataObject, CheckExistingObject, DataObjectCache);
+        }
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dataObjectViewName">наименование представления</param>
+        /// <param name="dobject">бъект данных, который требуется загрузить</param>
+        /// <param name="ClearDataObject">очищать ли объект</param>
+        /// <param name="CheckExistingObject">проверять ли существование объекта в хранилище</param>
+        virtual public void LoadObject(
+            string dataObjectViewName,
+            ICSSoft.STORMNET.DataObject dobject, bool ClearDataObject, bool CheckExistingObject, DataObjectCache DataObjectCache)
+        {
+            LoadObject(Information.GetView(dataObjectViewName, dobject.GetType()), dobject, ClearDataObject, CheckExistingObject, DataObjectCache);
         }
 
-        public void LoadObject(string dataObjectViewName, DataObject dobject, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dataObjectView">представление объекта</param>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        virtual public void LoadObject(
+            ICSSoft.STORMNET.View dataObjectView,
+            ICSSoft.STORMNET.DataObject dobject, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            LoadObject(dataObjectView, dobject, true, true, DataObjectCache);
         }
 
-        public void LoadObject(View dataObjectView, DataObject dobject, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dataObjectViewName">имя представления объекта</param>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        virtual public void LoadObject(
+            string dataObjectViewName,
+            ICSSoft.STORMNET.DataObject dobject, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            LoadObject(Information.GetView(dataObjectViewName, dobject.GetType()), dobject, true, true, DataObjectCache);
         }
 
-        public void LoadObject(DataObject dobject, bool ClearDataObject, bool CheckExistingObject, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        virtual public void LoadObject(ICSSoft.STORMNET.DataObject dobject)
         {
-            throw new NotImplementedException();
+            LoadObject(dobject, new DataObjectCache());
         }
-
-        public void LoadObject(string dataObjectViewName, DataObject dobject, bool ClearDataObject, bool CheckExistingObject, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dataObjectViewName">имя представления объекта</param>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        virtual public void LoadObject(
+            string dataObjectViewName,
+            ICSSoft.STORMNET.DataObject dobject)
         {
-            throw new NotImplementedException();
+            LoadObject(dataObjectViewName, dobject, new DataObjectCache());
         }
-
-        public void LoadObject(View dataObjectView, DataObject dobject, bool ClearDataObject, bool CheckExistingObject, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dataObjectView">представление объекта</param>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        virtual public void LoadObject(
+            ICSSoft.STORMNET.View dataObjectView,
+            ICSSoft.STORMNET.DataObject dobject)
         {
-            throw new NotImplementedException();
+            LoadObject(dataObjectView, dobject, new DataObjectCache());
         }
-
-        public void LoadObject(DataObject dobject)
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        /// <param name="ClearDataObject">очищать ли объект</param>
+        /// <param name="CheckExistingObject">проверять ли существование объекта в хранилище</param>
+        virtual public void LoadObject(
+            ICSSoft.STORMNET.DataObject dobject, bool ClearDataObject, bool CheckExistingObject)
+        {
+            LoadObject(dobject, ClearDataObject, CheckExistingObject, new DataObjectCache());
+        }
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dataObjectViewName">наименование представления</param>
+        /// <param name="dobject">бъект данных, который требуется загрузить</param>
+        /// <param name="ClearDataObject">очищать ли объект</param>
+        /// <param name="CheckExistingObject">проверять ли существование объекта в хранилище</param>
+        virtual public void LoadObject(
+            string dataObjectViewName,
+            ICSSoft.STORMNET.DataObject dobject, bool ClearDataObject, bool CheckExistingObject)
+        {
+            LoadObject(dataObjectViewName, dobject, ClearDataObject, CheckExistingObject, new DataObjectCache());
+        }
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dataObjectView">представление</param>
+        /// <param name="dobject">бъект данных, который требуется загрузить</param>
+        /// <param name="ClearDataObject">очищать ли объект</param>
+        /// <param name="CheckExistingObject">проверять ли существование объекта в хранилище</param>
+        virtual public void LoadObject(
+            ICSSoft.STORMNET.View dataObjectView,
+            ICSSoft.STORMNET.DataObject dobject, bool ClearDataObject, bool CheckExistingObject)
+        {
+            LoadObject(dataObjectView, dobject, ClearDataObject, CheckExistingObject, new DataObjectCache());
+        }
+        /// <summary>
+        /// Загрузка одного объекта данных
+        /// </summary>
+        /// <param name="dobject">объект данных, который требуется загрузить</param>
+        virtual public void LoadObject(ICSSoft.STORMNET.DataObject dobject, DataObjectCache DataObjectCache)
+        {
+            LoadObject(new View(dobject.GetType(), View.ReadType.OnlyThatObject), dobject, true, true, DataObjectCache);
+        }
+        
+        public void LoadObject(View dataObjectView, DataObject dobject, bool clearDataObject, bool checkExistingObject, DataObjectCache DataObjectCache)
         {
             IMongoDatabase database = GetDataBase();
-            IMongoCollection<BsonDocument> collection = GetCollection(dobject, database);
-            string dobjectKey = GutGUIDValue(dobject.__PrimaryKey);
+            IMongoCollection<BsonDocument> collection = GetCollection(dobject.GetType(), database);
+            Type type = dobject.GetType();
 
-            var filter = new BsonDocument() { { "uid", dobjectKey } };
+
+            string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(type);
+
+            BsonDocument filter = new BsonDocument() { { primaryKeyStorageName, GetKeyValue(dobject.__PrimaryKey) } };
             var cursor = collection.Find(filter);
 
-            var obj = cursor.FirstOrDefault();
+            BsonDocument obj = cursor.FirstOrDefault();
+
+
 
             if (obj == null)
                 //ToDo: Согласовать с параметрами.
-                throw new TypeLoadException(string.Format("Объект c ключом {0} отсутствует в базе.", dobjectKey));
+                throw new TypeLoadException(string.Format("Объект c ключом {0} отсутствует в базе.", dobject.__PrimaryKey));
 
             var dataObjectCache = new DataObjectCache();
-            var clearDataObject = true;
-            var view = new View(dobject.GetType(), View.ReadType.OnlyThatObject);
+
+            var view = new View(type, View.ReadType.OnlyThatObject);
             Type doType = dobject.GetType();
             StorageStructForView[] StorageStruct = {Information.GetStorageStructForView(view, doType, StorageTypeEnum.SimpleStorage,
                 new Information.GetPropertiesInExpressionDelegate(GetPropertiesInExpression), GetType()) };
 
             LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
             lc.View = view;
-            
+
             object[][] resValue = new object[1][];
             int rowIndex = 0;
             resValue[rowIndex] = new object[view.Properties.Length + 2];
-            
-            for (int i = 0; i < view.Properties.Length; i++)
-            {
-                string propertyName = view.Properties[i].Name;
-                if (obj.Names.Contains(propertyName))
-                    if (obj[propertyName].IsInt32)
-                        resValue[rowIndex][i] = obj[propertyName].AsInt32;
-                    else if (obj[propertyName].IsInt64)
-                        resValue[rowIndex][i] = obj[propertyName].AsInt64;
-                    else if (obj[propertyName].IsString)
-                            resValue[rowIndex][i] = obj[propertyName].AsString;
-                        else
-                            throw new InvalidCastException();
 
-            }
+            FillObject(obj, obj, view);
 
-            resValue[rowIndex][view.Properties.Length] = Guid.Parse(obj[Information.GetPrimaryKeyStorageName(doType)].AsString); // Ключ
+            resValue[rowIndex][view.Properties.Length] = obj[Information.GetPrimaryKeyStorageName(doType)].AsGuid; // Ключ
             resValue[rowIndex][view.Properties.Length + 1] = 0; // Тип объекта?
             Utils.ProcessingRowsetDataRef(resValue, new Type[] { doType }, StorageStruct, lc, new DataObject[] { dobject }, this, null, clearDataObject, dataObjectCache, SecurityManager);
 
         }
 
-        public static string GutGUIDValue(Object obj)
+        private static void FillObject(DataObject dataObject, BsonDocument document, View view)
         {
-
-            //ToDo: Разобраться с ключами.
-            return obj.ToString().Replace("{", string.Empty).Replace("}", string.Empty).ToUpper();
+            for (int i = 0; i < view.Properties.Length; i++)
+            {
+                string propertyName = view.Properties[i].Name;
+                object value = null; 
+                if (document.Names.Contains(propertyName))
+                    if (document[propertyName].IsInt32)
+                        value = document[propertyName].AsInt32;
+                    else if (document[propertyName].IsInt64)
+                        value = document[propertyName].AsInt64;
+                    else if (document[propertyName].IsString)
+                        value = document[propertyName].AsString;
+                    else if (document[propertyName].IsGuid)
+                        value = document[propertyName].AsGuid;
+                    else if (document[propertyName].IsValidDateTime)
+                        value = document[propertyName].ToUniversalTime();
+                    else
+                        throw new InvalidCastException();
+            Information.SetPropValueByName(dataObject, propertyName, value);
+            }
         }
 
-        private static IMongoCollection<BsonDocument> GetCollection(DataObject dobject, IMongoDatabase database)
+        private static BsonValue GetKeyValue(object key)
         {
-            string classStorageName = Information.GetClassStorageName(dobject.GetType());
+
+            if (key.GetType() == typeof(KeyGuid))
+                return new BsonBinaryData(((KeyGuid)key).Guid.ToByteArray(), BsonBinarySubType.UuidStandard);
+            else
+                throw new Exception(string.Format("Unsupported key type: {0}.", key.GetType()));
+        }
+
+        public static IMongoCollection<BsonDocument> GetCollection(Type type, IMongoDatabase database)
+        {
+            string classStorageName = Information.GetClassStorageName(type);
             IMongoCollection<BsonDocument> collection = database.GetCollection<BsonDocument>(classStorageName);
             return collection;
         }
@@ -209,100 +333,434 @@
             return Information.GetPropertiesInExpression(expression, namespacewithpoint);
         }
 
-        public void LoadObject(string dataObjectViewName, DataObject dobject)
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="dataobjects">исходные объекты</param>
+        /// <param name="dataObjectView">представлене</param>
+        /// <param name="ClearDataobject">очищать ли существующие</param>
+        virtual public void LoadObjects(ICSSoft.STORMNET.DataObject[] dataobjects,
+            ICSSoft.STORMNET.View dataObjectView, bool ClearDataobject)
         {
-            throw new NotImplementedException();
+            LoadObjects(dataobjects, dataObjectView, ClearDataobject, new DataObjectCache());
         }
 
-        public void LoadObject(View dataObjectView, DataObject dobject)
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="customizationStruct">настроичная структура для выборки<see cref="LoadingCustomizationStruct"/></param>
+        /// <returns>результат запроса</returns>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            LoadingCustomizationStruct customizationStruct)
         {
-            throw new NotImplementedException();
+            return LoadObjects(customizationStruct, new DataObjectCache());
         }
 
-        public void LoadObject(DataObject dobject, bool ClearDataObject, bool CheckExistingObject)
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="customizationStruct">настроичная структура для выборки<see cref="LoadingCustomizationStruct"/></param>
+        /// <param name="State">Состояние вычитки( для последующей дочитки )</param>
+        /// <returns></returns>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            LoadingCustomizationStruct customizationStruct,
+            ref object State)
         {
-            throw new NotImplementedException();
+            return LoadObjects(customizationStruct, ref State, new DataObjectCache());
         }
 
-        public void LoadObject(string dataObjectViewName, DataObject dobject, bool ClearDataObject, bool CheckExistingObject)
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="State">Состояние вычитки( для последующей дочитки)</param>
+        /// <returns></returns>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(ref object State)
         {
-            throw new NotImplementedException();
+            return LoadObjects(ref State, new DataObjectCache());
         }
 
-        public void LoadObject(View dataObjectView, DataObject dobject, bool ClearDataObject, bool CheckExistingObject)
+
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="customizationStruct">настроичная структура для выборки<see cref="LoadingCustomizationStruct"/></param>
+        /// <returns></returns>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            LoadingCustomizationStruct customizationStruct, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            object state = null;
+            ICSSoft.STORMNET.DataObject[] res = LoadObjects(customizationStruct, ref state, DataObjectCache);
+            return res;
         }
 
-        public void LoadObjects(DataObject[] dataobjects, View dataObjectView, bool ClearDataobject, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="dataobjects">исходные объекты</param>
+        /// <param name="dataObjectView">представлене</param>
+        /// <param name="ClearDataobject">очищать ли существующие</param>
+        virtual public void LoadObjects(ICSSoft.STORMNET.DataObject[] dataobjects,
+            ICSSoft.STORMNET.View dataObjectView, bool ClearDataobject, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            if (dataobjects == null || dataobjects.Length == 0) return;
+
+            /*if (!DoNotChangeCustomizationString && ChangeCustomizationString != null)
+            {
+                System.Collections.Generic.List<Type> tps = new System.Collections.Generic.List<Type>();
+                foreach (DataObject d in dataobjects)
+                {
+                    Type t = d.GetType();
+                    if (!tps.Contains(t))
+                    {
+                        tps.Add(t);
+                    }
+                }
+                string cs = ChangeCustomizationString(tps.ToArray());
+                customizationString = string.IsNullOrEmpty(cs) ? customizationString : cs;
+            }*/
+
+            DataObjectCache.StartCaching(false);
+            /*try
+            {
+                System.Collections.ArrayList ALtypes = new System.Collections.ArrayList();
+                System.Collections.ArrayList ALKeys = new System.Collections.ArrayList();
+                System.Collections.SortedList ALobjectsKeys = new System.Collections.SortedList();
+                System.Collections.SortedList readingKeys = new System.Collections.SortedList();
+                for (int i = 0; i < dataobjects.Length; i++)
+                {
+                    DataObject dobject = dataobjects[i];
+                    Type dotype = dobject.GetType();
+                    bool addobj = false;
+                    if (ALtypes.Contains(dotype))
+                        addobj = true;
+                    else
+                    {
+                        if ((dotype == dataObjectView.DefineClassType || dotype.IsSubclassOf(dataObjectView.DefineClassType)) && Information.IsStoredType(dotype))
+                        {
+                            ALtypes.Add(dotype);
+                            addobj = true;
+                        }
+                    }
+                    if (addobj)
+                    {
+                        object readingKey = (dobject.Prototyped) ? dobject.__PrototypeKey : dobject.__PrimaryKey;
+                        ALKeys.Add(readingKey);
+                        ALobjectsKeys.Add(dotype.FullName + readingKey.ToString(), i);
+                        readingKeys.Add(readingKey.ToString(), dobject.__PrimaryKey);
+                    }
+                }
+                LoadingCustomizationStruct customizationStruct = new LoadingCustomizationStruct(GetInstanceId());
+
+                FunctionalLanguage.SQLWhere.SQLWhereLanguageDef lang = ICSSoft.STORMNET.FunctionalLanguage.SQLWhere.SQLWhereLanguageDef.LanguageDef;
+                FunctionalLanguage.VariableDef var = new ICSSoft.STORMNET.FunctionalLanguage.VariableDef(
+                    lang.GetObjectTypeForNetType(KeyGen.KeyGenerator.Generator(dataObjectView.DefineClassType).KeyType), "STORMMainObjectKey");
+                object[] keys = new object[ALKeys.Count + 1]; ALKeys.CopyTo(keys, 1);
+                keys[0] = var;
+                FunctionalLanguage.Function func = lang.GetFunction(lang.funcIN, keys);
+                Type[] types = new Type[ALtypes.Count]; ALtypes.CopyTo(types);
+
+                customizationStruct.Init(null, func, types, dataObjectView, null);
+
+                STORMDO.Business.StorageStructForView[] StorageStruct;
+
+                // Применим полномочия на строки.
+                ApplyReadPermissions(customizationStruct, SecurityManager);
+
+                string SelectString = string.Empty;
+                SelectString = GenerateSQLSelect(customizationStruct, false, out StorageStruct, false);
+                //получаем данные
+                object State = null;
+
+                object[][] resValue = (SelectString == string.Empty) ? new object[0][] : ReadFirst(
+                    SelectString
+                    , ref State, 0);
+                if (resValue != null && resValue.Length != 0)
+                {
+                    DataObject[] loadobjects = new ICSSoft.STORMNET.DataObject[resValue.Length];
+                    int ObjectTypeIndexPOs = resValue[0].Length - 1;
+                    int keyIndex = StorageStruct[0].props.Length - 1;
+                    while (StorageStruct[0].props[keyIndex].MultipleProp) keyIndex--;
+                    keyIndex++;
+
+                    for (int i = 0; i < resValue.Length; i++)
+                    {
+                        Type tp = types[Convert.ToInt64(resValue[i][ObjectTypeIndexPOs].ToString())];
+                        object ky = resValue[i][keyIndex];
+                        ky = Information.TranslateValueToPrimaryKeyType(tp, ky);
+                        int indexobj = ALobjectsKeys.IndexOfKey(tp.FullName + ky.ToString());
+                        if (indexobj > -1)
+                        {
+                            loadobjects[i] = dataobjects[(int)ALobjectsKeys.GetByIndex(indexobj)];
+                            if (ClearDataobject)
+                                loadobjects[i].Clear();
+                            DataObjectCache.AddDataObject(loadobjects[i]);
+                        }
+                        else
+                            loadobjects[i] = null;
+                    }
+
+                    Utils.ProcessingRowsetDataRef(resValue, types, StorageStruct, customizationStruct, loadobjects, this, Types, ClearDataobject, DataObjectCache, SecurityManager);
+                    foreach (DataObject dobj in loadobjects)
+                    {
+                        if (dobj != null && dobj.Prototyped)
+                        {
+                            dobj.__PrimaryKey = readingKeys[dobj.__PrimaryKey.ToString()];
+                            dobj.SetStatus(ObjectStatus.Created);
+                            dobj.SetLoadingState(LoadingState.NotLoaded);
+                        }
+                    }
+                }
+
+            }
+            finally
+            {
+                DataObjectCache.StopCaching();
+            }*/
         }
 
-        public DataObject[] LoadObjects(LoadingCustomizationStruct customizationStruct, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка объектов данных по представлению
+        /// </summary>
+        /// <param name="dataObjectView">представление</param>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            ICSSoft.STORMNET.View dataObjectView)
         {
-            throw new NotImplementedException();
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
+            lc.View = dataObjectView;
+            lc.LoadingTypes = new[] { dataObjectView.DefineClassType };
+            return LoadObjects(lc, new DataObjectCache());
         }
 
-        public DataObject[] LoadObjects(LoadingCustomizationStruct customizationStruct, ref object State, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка объектов данных по массиву представлений
+        /// </summary>
+        /// <param name="dataObjectViews">массив представлений</param>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            ICSSoft.STORMNET.View[] dataObjectViews)
         {
-            throw new NotImplementedException();
+            System.Collections.ArrayList arr = new System.Collections.ArrayList();
+            ICSSoft.STORMNET.DataObject[] res = null;
+            for (int i = 0; i < dataObjectViews.Length; i++)
+            {
+                res = LoadObjects(dataObjectViews[i]);
+                for (int j = 0; j < res.Length; j++)
+                {
+                    arr.Add(res[j]);
+                }
+            }
+            res = new ICSSoft.STORMNET.DataObject[arr.Count];
+            arr.CopyTo(res);
+            return res;
         }
 
-        public DataObject[] LoadObjects(ref object State, DataObjectCache DataObjectCache)
+        /// <summary>
+        /// Загрузка объектов данных по массиву структур
+        /// </summary>
+        /// <param name="customizationStructs">массив структур</param>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            LoadingCustomizationStruct[] customizationStructs)
         {
-            throw new NotImplementedException();
+            System.Collections.ArrayList arr = new System.Collections.ArrayList();
+            ICSSoft.STORMNET.DataObject[] res = null;
+            for (int i = 0; i < customizationStructs.Length; i++)
+            {
+                res = LoadObjects(customizationStructs[i], new DataObjectCache());
+                for (int j = 0; j < res.Length; j++)
+                {
+                    arr.Add(res[j]);
+                }
+            }
+            res = new ICSSoft.STORMNET.DataObject[arr.Count];
+            arr.CopyTo(res);
+            return res;
         }
 
-        public void LoadObjects(DataObject[] dataobjects, View dataObjectView, bool ClearDataobject)
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="customizationStruct">настроичная структура для выборки<see cref="LoadingCustomizationStruct"/></param>
+        /// <param name="State">Состояние вычитки( для последующей дочитки )</param>
+        /// <returns></returns>
+        virtual public DataObject[] LoadObjects(
+            LoadingCustomizationStruct customizationStruct,
+            ref object State, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            DataObjectCache.StartCaching(false);
+            try
+            {
+                /*
+                System.Type[] dataObjectType = customizationStruct.LoadingTypes;
+                if (!DoNotChangeCustomizationString && ChangeCustomizationString != null)
+                {
+                    string cs = ChangeCustomizationString(dataObjectType);
+                    customizationString = string.IsNullOrEmpty(cs) ? customizationString : cs;
+                }
+
+                // Применим полномочия на строки.
+                ApplyReadPermissions(customizationStruct, SecurityManager);
+
+                STORMDO.Business.StorageStructForView[] StorageStruct;
+
+                string SelectString = string.Empty;
+                SelectString = GenerateSQLSelect(customizationStruct, false, out StorageStruct, false);
+                //получаем данные
+                object[][] resValue = ReadFirst(
+                    SelectString
+                    , ref State, customizationStruct.LoadingBufferSize);
+                State = new object[] { State, dataObjectType, StorageStruct, customizationStruct, customizationString };
+                ICSSoft.STORMNET.DataObject[] res = null;
+                if (resValue == null)
+                {
+                    res = new DataObject[0];
+                }
+                else
+                {
+                    res = Utils.ProcessingRowsetData(resValue, dataObjectType, StorageStruct, customizationStruct, this, Types, DataObjectCache, SecurityManager);
+                }
+                return res;
+                */
+                IMongoDatabase database = GetDataBase();
+                Type type = customizationStruct.LoadingTypes.FirstOrDefault();
+                IMongoCollection<BsonDocument> collection = GetCollection(type, database);
+
+                
+                string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(type);
+
+                BsonDocument filter = new BsonDocument() { /*{ primaryKeyStorageName, GetKeyValue(dobject.__PrimaryKey) }*/ };
+
+                List<BsonDocument> documents = collection.Find(filter).Limit(customizationStruct.ReturnTop).ToList();
+
+
+
+                /*var dataObjectCache = new DataObjectCache();
+
+                var view = new View(type, View.ReadType.OnlyThatObject);
+
+                StorageStructForView[] StorageStruct = {Information.GetStorageStructForView(view, type, StorageTypeEnum.SimpleStorage,
+                new Information.GetPropertiesInExpressionDelegate(GetPropertiesInExpression), GetType()) };
+
+                LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
+                lc.View = view;
+
+                object[][] resValue = new object[1][];
+                int rowIndex = 0;
+                resValue[rowIndex] = new object[view.Properties.Length + 2];
+
+                for (int i = 0; i < view.Properties.Length; i++)
+                {
+                    string propertyName = view.Properties[i].Name;
+                    if (obj.Names.Contains(propertyName))
+                        if (obj[propertyName].IsInt32)
+                            resValue[rowIndex][i] = obj[propertyName].AsInt32;
+                        else if (obj[propertyName].IsInt64)
+                            resValue[rowIndex][i] = obj[propertyName].AsInt64;
+                        else if (obj[propertyName].IsString)
+                            resValue[rowIndex][i] = obj[propertyName].AsString;
+                        else if (obj[propertyName].IsGuid)
+                            resValue[rowIndex][i] = obj[propertyName].AsGuid;
+                        else if (obj[propertyName].IsValidDateTime)
+                            resValue[rowIndex][i] = obj[propertyName].ToUniversalTime();
+                        else
+                            throw new InvalidCastException();
+
+                }
+
+                resValue[rowIndex][view.Properties.Length] = obj[Information.GetPrimaryKeyStorageName(doType)].AsGuid; // Ключ
+                resValue[rowIndex][view.Properties.Length + 1] = 0; // Тип объекта?
+                Utils.ProcessingRowsetDataRef(resValue, new Type[] { doType }, StorageStruct, lc, new DataObject[] { dobject }, this, null, clearDataObject, dataObjectCache, SecurityManager);
+                */
+            }
+            finally
+            {
+                DataObjectCache.StopCaching();
+            }
+
+
         }
 
-        public DataObject[] LoadObjects(View dataObjectView)
+        /// <summary>
+        /// Загрузка объектов данных по представлению
+        /// </summary>
+        /// <param name="dataObjectView">представление</param>
+        /// <param name="changeViewForTypeDelegate">делегат</param>
+        virtual public DataObject[] LoadObjects(
+            View dataObjectView, ChangeViewForTypeDelegate changeViewForTypeDelegate)
         {
-            throw new NotImplementedException();
+            if (changeViewForTypeDelegate != null)
+            {
+                fchangeViewForTypeDelegate = changeViewForTypeDelegate;
+            }
+            return LoadObjects(dataObjectView);
         }
 
-        public DataObject[] LoadObjects(View[] dataObjectViews)
+        /// <summary>
+        /// Загрузка объектов данных по массиву представлений
+        /// </summary>
+        /// <param name="dataObjectViews">массив представлений</param>
+        /// <param name="changeViewForTypeDelegate">делегат</param>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            ICSSoft.STORMNET.View[] dataObjectViews, ChangeViewForTypeDelegate changeViewForTypeDelegate)
         {
-            throw new NotImplementedException();
+            if (changeViewForTypeDelegate != null)
+            {
+                this.fchangeViewForTypeDelegate = changeViewForTypeDelegate;
+            }
+            return LoadObjects(dataObjectViews);
         }
 
-        public DataObject[] LoadObjects(LoadingCustomizationStruct[] customizationStructs)
+        /// <summary>
+        /// Загрузка объектов данных по массиву структур
+        /// </summary>
+        /// <param name="customizationStructs">массив структур</param>
+        /// <param name="changeViewForTypeDelegate">делегат</param>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(
+            LoadingCustomizationStruct[] customizationStructs, ChangeViewForTypeDelegate changeViewForTypeDelegate)
         {
-            throw new NotImplementedException();
+            if (changeViewForTypeDelegate != null)
+            {
+                this.fchangeViewForTypeDelegate = changeViewForTypeDelegate;
+            }
+            return LoadObjects(customizationStructs);
         }
 
-        public DataObject[] LoadObjects(View dataObjectView, ChangeViewForTypeDelegate changeViewForTypeDelegate)
+        /// <summary>
+        /// Загрузка объектов данных
+        /// </summary>
+        /// <param name="State">Состояние вычитки( для последующей дочитки)</param>
+        /// <returns></returns>
+        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(ref object State, DataObjectCache DataObjectCache)
         {
-            throw new NotImplementedException();
+            if (State == null)
+                return new DataObject[0];
+            DataObjectCache.StartCaching(false);
+            try
+            {
+                //получаем данные
+                object[] stateArr = (object[])State;
+                ICSSoft.STORMNET.DataObject[] res = null;
+                if (stateArr[0] == null)
+                    res = new DataObject[0];
+                else
+                {
+                    object[][] resValue = ReadNext(ref stateArr[0], ((LoadingCustomizationStruct)stateArr[3]).LoadingBufferSize);
+                    if (resValue == null)
+                    {
+                        res = new DataObject[0];
+                    }
+                    else
+                    {
+                        res = Utils.ProcessingRowsetData(resValue, (System.Type[])stateArr[1], (STORMNET.Business.StorageStructForView[])stateArr[2], (LoadingCustomizationStruct)stateArr[3], this, Types, DataObjectCache, SecurityManager);
+                    }
+                }
+                DataObjectCache.StopCaching();
+                return res;
+            }
+            finally
+            {
+                DataObjectCache.StopCaching();
+            }
         }
 
-        public DataObject[] LoadObjects(View[] dataObjectViews, ChangeViewForTypeDelegate changeViewForTypeDelegate)
-        {
-            throw new NotImplementedException();
-        }
-
-        public DataObject[] LoadObjects(LoadingCustomizationStruct[] customizationStructs, ChangeViewForTypeDelegate changeViewForTypeDelegate)
-        {
-            throw new NotImplementedException();
-        }
-
-        public DataObject[] LoadObjects(LoadingCustomizationStruct customizationStruct)
-        {
-            throw new NotImplementedException();
-        }
-
-        public DataObject[] LoadObjects(LoadingCustomizationStruct customizationStruct, ref object State)
-        {
-            throw new NotImplementedException();
-        }
-
-        public DataObject[] LoadObjects(ref object State)
-        {
-            throw new NotImplementedException();
-        }
 
         public ObjectStringDataView[] LoadStringedObjectView(char separator, LoadingCustomizationStruct customizationStruct)
         {
@@ -398,13 +856,13 @@
             foreach (DataObject obj in objects)
             {
                 Type objType = obj.GetType();
+                string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(objType);
                 IMongoCollection<BsonDocument> collection = GetCollection(obj, database);
 
                 switch (obj.GetStatus())
                 {
                     case ObjectStatus.Deleted:
-                        string objKey = GutGUIDValue(obj.__PrimaryKey);
-                        var filter = new BsonDocument() { { "uid", objKey} };
+                        var filter = new BsonDocument() { { primaryKeyStorageName, GetKeyValue(obj.__PrimaryKey) } };
                         var cursor = collection.Find(filter);
 
                         collection.DeleteOne(filter);
@@ -444,7 +902,7 @@
             else if (value.GetType() == typeof(string))
                 return new BsonString((string)value);
             else if (value.GetType() == typeof(ICSSoft.STORMNET.KeyGen.KeyGuid))
-                return GutGUIDValue(value);
+                return GetKeyValue(value);
             else
                 throw new NotImplementedException();
         }

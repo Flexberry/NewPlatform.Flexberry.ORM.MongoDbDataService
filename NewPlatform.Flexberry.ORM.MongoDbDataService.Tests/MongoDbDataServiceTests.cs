@@ -1,6 +1,8 @@
 ﻿using ICSSoft.STORMNET;
 using ICSSoft.STORMNET.Business;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using NewPlatform.BigDataTest;
 using NewPlatform.Flexberry.ORM;
 using System;
@@ -19,7 +21,9 @@ namespace NewPlatform.Flexberry.ORM.Tests
         {
             var obj = new Event();
 
-            obj.__PrimaryKey = "03BC8CA2-78C6-4154-BE0C-B6063D3F31B5";
+            
+            obj.__PrimaryKey = Convert.FromBase64String("MMvIKodsFEXrwGtg0/MTWw==");
+
             var ds = DataServiceProvider.DataService;
 
             ds.LoadObject(obj);
@@ -52,7 +56,7 @@ namespace NewPlatform.Flexberry.ORM.Tests
             ds.UpdateObject(obj);
 
             var objRead = new Event();
-            objRead.__PrimaryKey = MongoDbDataService.GutGUIDValue(obj.__PrimaryKey);
+            objRead.__PrimaryKey = obj.__PrimaryKey;
 
             ds.LoadObject(objRead);
 
@@ -72,7 +76,7 @@ namespace NewPlatform.Flexberry.ORM.Tests
             ds.UpdateObject(obj);
 
             var objRead = new Event();
-            objRead.__PrimaryKey = MongoDbDataService.GutGUIDValue(obj.__PrimaryKey);
+            objRead.__PrimaryKey = obj.__PrimaryKey;
 
             ds.LoadObject(objRead);
 
@@ -82,5 +86,19 @@ namespace NewPlatform.Flexberry.ORM.Tests
 
             ds.LoadObject(objRead);
         }
+
+    
+
+        [TestMethod()]
+        public void Guid1Test()
+        {
+            var s = "MMvIKodsFEXrwGtg0/MTWw==";
+            var v = Convert.FromBase64String(s);
+            Guid g = new Guid(v);
+            var s1 = Convert.ToBase64String(g.ToByteArray());
+            Assert.AreEqual(s1, s);
+
+
+        }                     
     }
 }
