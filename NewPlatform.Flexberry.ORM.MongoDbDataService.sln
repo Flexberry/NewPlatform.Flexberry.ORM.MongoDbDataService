@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26228.16
+VisualStudioVersion = 15.0.27004.2005
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NewPlatform.Flexberry.ORM.MongoDbDataService", "NewPlatform.Flexberry.ORM.MongoDbDataService\NewPlatform.Flexberry.ORM.MongoDbDataService.csproj", "{98F968BE-A11A-4733-AC65-D89425486C68}"
 EndProject
@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Open Source", "Open Source"
 		.travis.yml = .travis.yml
 		CHANGELOG.md = CHANGELOG.md
 		LICENSE.md = LICENSE.md
+		NewPlatform.Flexberry.ORM.MongoDbDataService.nuspec = NewPlatform.Flexberry.ORM.MongoDbDataService.nuspec
 		README.md = README.md
 	EndProjectSection
 EndProject
@@ -41,7 +42,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {A6315904-5D95-4F3A-B470-6E5A99405502}
 		EnterpriseLibraryConfigurationToolBinariesPath = packages\Unity.2.1.505.2\lib\NET35
+		SolutionGuid = {A6315904-5D95-4F3A-B470-6E5A99405502}
 	EndGlobalSection
 EndGlobal
