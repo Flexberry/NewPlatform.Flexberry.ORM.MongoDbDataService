@@ -1,5 +1,7 @@
 ﻿using ICSSoft.STORMNET;
 using ICSSoft.STORMNET.Business;
+using ICSSoft.STORMNET.FunctionalLanguage;
+using ICSSoft.STORMNET.Windows.Forms;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -99,6 +101,86 @@ namespace NewPlatform.Flexberry.ORM.Tests
             Assert.AreEqual(s1, s);
 
 
-        }                     
+        }
+
+        [TestMethod()]
+        public void LoadObjectsTest()
+        {
+            var ds = DataServiceProvider.DataService;
+            var obj = new Event();
+
+            var view = new View(obj.GetType(), View.ReadType.OnlyThatObject);
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(ds.GetInstanceId());
+            lc.LoadingTypes = new[] { obj.GetType() };
+            lc.View = view;
+            lc.ReturnTop = 100;
+            var langdef = ExternalLangDef.LanguageDef;
+            lc.LimitFunction = langdef.GetFunction(langdef.funcEQ,
+                new VariableDef(langdef.StringType, Information.ExtractPropertyPath<Event>(x => x.grz)), "Я692ДЛ159");
+
+            var result = ds.LoadObjects(lc);
+            Assert.AreEqual(lc.ReturnTop, result.Length);
+        }
+
+
+        [TestMethod()]
+        public void LimitFunctionToDocumentTest()
+        {
+            var ds = DataServiceProvider.DataService;
+            var obj = new Event();
+
+            var langdef = ExternalLangDef.LanguageDef;
+            var lf =
+                langdef.GetFunction(langdef.funcOR,
+
+                langdef.GetFunction(langdef.funcEQ,
+                new VariableDef(langdef.StringType, Information.ExtractPropertyPath<Event>(x => x.grz)), "Я692ДЛ159"),
+
+                langdef.GetFunction(langdef.funcEQ,
+                new VariableDef(langdef.StringType, Information.ExtractPropertyPath<Event>(x => x.grz)), "З806ФП190")
+                );
+
+            var result = ((MongoDbDataService)ds).LimitFunctionToDocument(lf);
+            //Assert.AreEqual(lc.ReturnTop, result.Length);
+        }
+
+        [TestMethod()]
+        public void DetailTest()
+        {
+            var ds = DataServiceProvider.DataService;
+            var obj = new RegObject();
+
+            obj.__PrimaryKey = Convert.FromBase64String("KoT76tuKZOfpaCBd50STAw==");
+
+            var view = new View(obj.GetType(), View.ReadType.OnlyThatObject);
+            view.AddDetailInView("Cameras", new View(typeof(Camera), View.ReadType.OnlyThatObject), true);
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(ds.GetInstanceId());
+
+            ds.LoadObject(view, obj);
+            
+        }
+
+        [TestMethod()]
+        public void GetObjectsCountTest()
+        {
+            var ds = DataServiceProvider.DataService;
+            var obj = new Event();
+
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(ds.GetInstanceId());
+
+
+            lc.LoadingTypes = new[] { obj.GetType() };
+            var langdef = ExternalLangDef.LanguageDef;
+            lc.LimitFunction =     langdef.GetFunction(langdef.funcOR,
+
+                        langdef.GetFunction(langdef.funcEQ,
+                        new VariableDef(langdef.StringType, Information.ExtractPropertyPath<Event>(x => x.grz)), "Я692ДЛ159"),
+
+                        langdef.GetFunction(langdef.funcEQ,
+                        new VariableDef(langdef.StringType, Information.ExtractPropertyPath<Event>(x => x.grz)), "З806ФП190")
+                        );
+            int count = ds.GetObjectsCount(lc);
+ 
+        }
     }
 }

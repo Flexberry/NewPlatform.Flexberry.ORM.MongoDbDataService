@@ -14,6 +14,7 @@
     using ICSSoft.Services;
     using ICSSoft.STORMNET.KeyGen;
     using System.Collections.Generic;
+    using ICSSoft.STORMNET.Windows.Forms;
 
     /// <summary>
     /// Flexberry ORM DataService for MongoDB Storage.
@@ -101,7 +102,15 @@
 
         public int GetObjectsCount(LoadingCustomizationStruct customizationStruct)
         {
-            throw new NotImplementedException();
+            IMongoDatabase database = GetDataBase();
+            Type type = customizationStruct.LoadingTypes.FirstOrDefault();
+            IMongoCollection<BsonDocument> collection = GetCollection(type, database);
+
+            string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(type);
+
+            BsonDocument filter = LimitFunctionToDocument(customizationStruct.LimitFunction);
+
+            return (int)collection.Find(filter).Count();
         }
 
         /// <summary>
@@ -228,70 +237,106 @@
         {
             LoadObject(new View(dobject.GetType(), View.ReadType.OnlyThatObject), dobject, true, true, DataObjectCache);
         }
-        
-        public void LoadObject(View dataObjectView, DataObject dobject, bool clearDataObject, bool checkExistingObject, DataObjectCache DataObjectCache)
+
+        public void LoadObject(View dataObjectView, DataObject obj, bool clearDataObject, bool checkExistingObject, DataObjectCache DataObjectCache)
         {
             IMongoDatabase database = GetDataBase();
-            IMongoCollection<BsonDocument> collection = GetCollection(dobject.GetType(), database);
-            Type type = dobject.GetType();
+            IMongoCollection<BsonDocument> collection = GetCollection(obj.GetType(), database);
+            Type type = obj.GetType();
 
 
             string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(type);
 
-            BsonDocument filter = new BsonDocument() { { primaryKeyStorageName, GetKeyValue(dobject.__PrimaryKey) } };
+            BsonDocument filter = new BsonDocument() { { primaryKeyStorageName, GetKeyValue(obj.__PrimaryKey) } };
             var cursor = collection.Find(filter);
 
-            BsonDocument obj = cursor.FirstOrDefault();
+            BsonDocument doc = cursor.FirstOrDefault();
 
-
-
-            if (obj == null)
+            if (doc == null)
                 //ToDo: Согласовать с параметрами.
-                throw new TypeLoadException(string.Format("Объект c ключом {0} отсутствует в базе.", dobject.__PrimaryKey));
+                throw new TypeLoadException(string.Format("Объект c ключом {0} отсутствует в базе.", obj.__PrimaryKey));
 
             var dataObjectCache = new DataObjectCache();
 
             var view = new View(type, View.ReadType.OnlyThatObject);
-            Type doType = dobject.GetType();
-            StorageStructForView[] StorageStruct = {Information.GetStorageStructForView(view, doType, StorageTypeEnum.SimpleStorage,
-                new Information.GetPropertiesInExpressionDelegate(GetPropertiesInExpression), GetType()) };
+            Type doType = obj.GetType();
 
             LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
             lc.View = view;
 
-            object[][] resValue = new object[1][];
-            int rowIndex = 0;
-            resValue[rowIndex] = new object[view.Properties.Length + 2];
-
-            FillObject(obj, obj, view);
-
-            resValue[rowIndex][view.Properties.Length] = obj[Information.GetPrimaryKeyStorageName(doType)].AsGuid; // Ключ
-            resValue[rowIndex][view.Properties.Length + 1] = 0; // Тип объекта?
-            Utils.ProcessingRowsetDataRef(resValue, new Type[] { doType }, StorageStruct, lc, new DataObject[] { dobject }, this, null, clearDataObject, dataObjectCache, SecurityManager);
+            DataObjectCache cache = new DataObjectCache();
+            FillObject(obj, doc, view, cache);
 
         }
 
-        private static void FillObject(DataObject dataObject, BsonDocument document, View view)
+        private void FillObject(DataObject dataObject, BsonDocument document, View view, DataObjectCache cache)
         {
+            var dataObjectType = dataObject.GetType();
+
             for (int i = 0; i < view.Properties.Length; i++)
             {
                 string propertyName = view.Properties[i].Name;
-                object value = null; 
+                object value = null;
                 if (document.Names.Contains(propertyName))
-                    if (document[propertyName].IsInt32)
-                        value = document[propertyName].AsInt32;
-                    else if (document[propertyName].IsInt64)
-                        value = document[propertyName].AsInt64;
-                    else if (document[propertyName].IsString)
-                        value = document[propertyName].AsString;
-                    else if (document[propertyName].IsGuid)
-                        value = document[propertyName].AsGuid;
-                    else if (document[propertyName].IsValidDateTime)
-                        value = document[propertyName].ToUniversalTime();
-                    else
-                        throw new InvalidCastException();
-            Information.SetPropValueByName(dataObject, propertyName, value);
+                {
+                    var propertyType = Information.GetPropertyType(dataObjectType, propertyName);
+                    if (propertyType.IsSubclassOf(typeof(DataObject)))
+                    {
+                        value = GetDocumentProperty(document, propertyName);
+                        DataObject master = cache.CreateDataObject(propertyType, propertyName);
+                        LoadObject(master);
+                        Information.SetPropValueByName(dataObject, propertyName, master);
+                    }
+                    else if (propertyType.IsSubclassOf(typeof(DetailArray)))
+                    {
+                    }
+                    else if (!propertyName.Contains("."))
+                    {
+                        value = GetDocumentProperty(document, propertyName);
+                        Information.SetPropValueByName(dataObject, propertyName, value);
+                    }
+                }
             }
+
+            foreach (var detailInView in view.Details)
+            {
+                var detailArray = (DetailArray) Activator.CreateInstance(Information.GetPropertyType(dataObjectType, detailInView.Name));
+                var detailType = detailInView.View.DefineClassType;
+                LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
+                lc.LoadingTypes = new[] { detailType };
+                lc.View = detailInView.View;
+
+                var langdef = ExternalLangDef.LanguageDef;
+                lc.LimitFunction = langdef.GetFunction(langdef.funcEQ,
+                    new VariableDef(langdef.GuidType, Information.GetAgregatePropertyName(detailType)), dataObject.__PrimaryKey);
+
+                var details = LoadObjects(lc);
+
+                detailArray.AddRange(details);
+
+            }
+        }
+
+        private static object GetDocumentProperty(BsonDocument document, string propertyName)
+        {
+            object value;
+            if (document[propertyName].IsInt32)
+                value = document[propertyName].AsInt32;
+            else if (document[propertyName].IsInt64)
+                value = document[propertyName].AsInt64;
+            else if (document[propertyName].IsString)
+                value = document[propertyName].AsString;
+            else if (document[propertyName].IsGuid)
+                value = document[propertyName].AsGuid;
+            else if (document[propertyName].IsValidDateTime)
+                value = document[propertyName].ToUniversalTime();
+            else if (document[propertyName].IsDouble)
+                value = document[propertyName].ToDouble();
+            else if (document[propertyName].IsBsonArray)
+                value = null;
+            else
+                throw new InvalidCastException();
+            return value;
         }
 
         private static BsonValue GetKeyValue(object key)
@@ -588,94 +633,33 @@
             DataObjectCache.StartCaching(false);
             try
             {
-                /*
-                System.Type[] dataObjectType = customizationStruct.LoadingTypes;
-                if (!DoNotChangeCustomizationString && ChangeCustomizationString != null)
-                {
-                    string cs = ChangeCustomizationString(dataObjectType);
-                    customizationString = string.IsNullOrEmpty(cs) ? customizationString : cs;
-                }
-
-                // Применим полномочия на строки.
-                ApplyReadPermissions(customizationStruct, SecurityManager);
-
-                STORMDO.Business.StorageStructForView[] StorageStruct;
-
-                string SelectString = string.Empty;
-                SelectString = GenerateSQLSelect(customizationStruct, false, out StorageStruct, false);
-                //получаем данные
-                object[][] resValue = ReadFirst(
-                    SelectString
-                    , ref State, customizationStruct.LoadingBufferSize);
-                State = new object[] { State, dataObjectType, StorageStruct, customizationStruct, customizationString };
-                ICSSoft.STORMNET.DataObject[] res = null;
-                if (resValue == null)
-                {
-                    res = new DataObject[0];
-                }
-                else
-                {
-                    res = Utils.ProcessingRowsetData(resValue, dataObjectType, StorageStruct, customizationStruct, this, Types, DataObjectCache, SecurityManager);
-                }
-                return res;
-                */
                 IMongoDatabase database = GetDataBase();
                 Type type = customizationStruct.LoadingTypes.FirstOrDefault();
                 IMongoCollection<BsonDocument> collection = GetCollection(type, database);
 
-                
                 string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(type);
 
-                BsonDocument filter = new BsonDocument() { /*{ primaryKeyStorageName, GetKeyValue(dobject.__PrimaryKey) }*/ };
+                BsonDocument filter = LimitFunctionToDocument(customizationStruct.LimitFunction);
 
                 List<BsonDocument> documents = collection.Find(filter).Limit(customizationStruct.ReturnTop).ToList();
 
+                DataObject[] result = new DataObject[documents.Count];
 
-
-                /*var dataObjectCache = new DataObjectCache();
-
-                var view = new View(type, View.ReadType.OnlyThatObject);
-
-                StorageStructForView[] StorageStruct = {Information.GetStorageStructForView(view, type, StorageTypeEnum.SimpleStorage,
-                new Information.GetPropertiesInExpressionDelegate(GetPropertiesInExpression), GetType()) };
-
-                LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
-                lc.View = view;
-
-                object[][] resValue = new object[1][];
-                int rowIndex = 0;
-                resValue[rowIndex] = new object[view.Properties.Length + 2];
-
-                for (int i = 0; i < view.Properties.Length; i++)
+                for (int i = 0; i < documents.Count; i++)
                 {
-                    string propertyName = view.Properties[i].Name;
-                    if (obj.Names.Contains(propertyName))
-                        if (obj[propertyName].IsInt32)
-                            resValue[rowIndex][i] = obj[propertyName].AsInt32;
-                        else if (obj[propertyName].IsInt64)
-                            resValue[rowIndex][i] = obj[propertyName].AsInt64;
-                        else if (obj[propertyName].IsString)
-                            resValue[rowIndex][i] = obj[propertyName].AsString;
-                        else if (obj[propertyName].IsGuid)
-                            resValue[rowIndex][i] = obj[propertyName].AsGuid;
-                        else if (obj[propertyName].IsValidDateTime)
-                            resValue[rowIndex][i] = obj[propertyName].ToUniversalTime();
-                        else
-                            throw new InvalidCastException();
-
+                    BsonDocument doc = documents[i];
+                    var obj = DataObjectCache.CreateDataObject(type, GetDocumentProperty(doc, primaryKeyStorageName));
+                    FillObject(obj, doc, customizationStruct.View, DataObjectCache);
+                    result[i] = obj;
                 }
-
-                resValue[rowIndex][view.Properties.Length] = obj[Information.GetPrimaryKeyStorageName(doType)].AsGuid; // Ключ
-                resValue[rowIndex][view.Properties.Length + 1] = 0; // Тип объекта?
-                Utils.ProcessingRowsetDataRef(resValue, new Type[] { doType }, StorageStruct, lc, new DataObject[] { dobject }, this, null, clearDataObject, dataObjectCache, SecurityManager);
-                */
+                return result;
             }
             finally
             {
                 DataObjectCache.StopCaching();
             }
 
-
+            return new DataObject[0];
         }
 
         /// <summary>
@@ -728,7 +712,7 @@
         /// </summary>
         /// <param name="State">Состояние вычитки( для последующей дочитки)</param>
         /// <returns></returns>
-        virtual public ICSSoft.STORMNET.DataObject[] LoadObjects(ref object State, DataObjectCache DataObjectCache)
+        virtual public DataObject[] LoadObjects(ref object State, DataObjectCache DataObjectCache)
         {
             if (State == null)
                 return new DataObject[0];
@@ -742,14 +726,15 @@
                     res = new DataObject[0];
                 else
                 {
-                    object[][] resValue = ReadNext(ref stateArr[0], ((LoadingCustomizationStruct)stateArr[3]).LoadingBufferSize);
+                    object[][] resValue = null;//= ReadNext(ref stateArr[0], ((LoadingCustomizationStruct)stateArr[3]).LoadingBufferSize);
                     if (resValue == null)
                     {
                         res = new DataObject[0];
                     }
                     else
                     {
-                        res = Utils.ProcessingRowsetData(resValue, (System.Type[])stateArr[1], (STORMNET.Business.StorageStructForView[])stateArr[2], (LoadingCustomizationStruct)stateArr[3], this, Types, DataObjectCache, SecurityManager);
+                        //res = Utils.ProcessingRowsetData(resValue, (System.Type[])stateArr[1], (StorageStructForView[])stateArr[2], (LoadingCustomizationStruct)stateArr[3],
+                        //    this, Types, DataObjectCache, SecurityManager);
                     }
                 }
                 DataObjectCache.StopCaching();
@@ -819,12 +804,12 @@
         /// Обновление объекта данных
         /// </summary>
         /// <param name="dobject">объект данных, который требуется обновить</param>
-        virtual public void UpdateObject(ICSSoft.STORMNET.DataObject dobject, bool AlwaysThrowException)
+        virtual public void UpdateObject(DataObject dobject, bool AlwaysThrowException)
         {
             UpdateObject(ref dobject, new DataObjectCache(), AlwaysThrowException);
         }
 
-        virtual public void UpdateObject(ref ICSSoft.STORMNET.DataObject dobject)
+        virtual public void UpdateObject(ref DataObject dobject)
         {
             UpdateObject(ref dobject, false);
         }
@@ -833,7 +818,7 @@
         /// Обновление объекта данных
         /// </summary>
         /// <param name="dobject">объект данных, который требуется обновить</param>
-        virtual public void UpdateObject(ref ICSSoft.STORMNET.DataObject dobject, bool AlwaysThrowException)
+        virtual public void UpdateObject(ref DataObject dobject, bool AlwaysThrowException)
         {
             UpdateObject(ref dobject, new DataObjectCache(), AlwaysThrowException);
         }
@@ -857,7 +842,7 @@
             {
                 Type objType = obj.GetType();
                 string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(objType);
-                IMongoCollection<BsonDocument> collection = GetCollection(obj, database);
+                IMongoCollection<BsonDocument> collection = GetCollection(obj.GetType(), database);
 
                 switch (obj.GetStatus())
                 {
@@ -884,7 +869,7 @@
                                 doc.Add(propertyToStore, ToBsonValue(value));
                             }
                         }
-                        
+
                         collection.InsertOne(doc);
                         break;
                 }
@@ -924,6 +909,96 @@
         public virtual void UpdateObjects(ref DataObject[] objects, bool AlwaysThrowException)
         {
             UpdateObjects(ref objects, new DataObjectCache(), AlwaysThrowException);
+        }
+
+        public BsonDocument LimitFunctionToDocument(Function function)
+        {
+            if (function == null)
+                return new BsonDocument();
+
+
+            string attributeName = null;
+            object value = null;
+
+            foreach (object obj in function.Parameters)
+            {
+                if (obj is DetailVariableDef)
+                    throw new NotSupportedException("DetailVariableDef");
+
+                else if (obj is VariableDef)
+                {
+                     attributeName = ((VariableDef)obj).StringedView;
+                    //if (name != "STORMMainObjectKey")
+                }
+                //else if (obj is Function)
+                    //value= LimitFunctionToDocument((Function)obj);
+                else
+                {
+                    value = obj;
+                }
+
+
+
+            }
+
+            /*
+             $eq
+Matches values that are equal to a specified value.
+$gt
+Matches values that are greater than a specified value.
+$gte
+Matches values that are greater than or equal to a specified value.
+$in
+Matches any of the values specified in an array.
+$lt
+Matches values that are less than a specified value.
+$lte
+Matches values that are less than or equal to a specified value.
+$ne
+Matches all values that are not equal to a specified value.
+$nin
+Matches none of the values specified in an array.
+             */
+
+            if (function.FunctionDef.StringedView == SQLWhereLanguageDef.LanguageDef.funcEQ)
+            {
+                return new BsonDocument(attributeName, value.ToString());
+            }
+            if (function.FunctionDef.StringedView == SQLWhereLanguageDef.LanguageDef.funcG)
+            {
+                return new BsonDocument(attributeName, new BsonDocument("$gt", value.ToString()));
+            }
+            if (function.FunctionDef.StringedView == SQLWhereLanguageDef.LanguageDef.funcNEQ)
+            {
+                return new BsonDocument(attributeName, new BsonDocument("$ne", value.ToString()));
+            }
+            else if (function.FunctionDef.StringedView == SQLWhereLanguageDef.LanguageDef.funcAND)
+            {
+                var arr = new BsonArray();
+
+                foreach (object obj in function.Parameters)
+                    if (obj is Function)
+                        arr.Add(LimitFunctionToDocument((Function)obj));
+
+                return new BsonDocument("$and", arr);
+            }
+            else if (function.FunctionDef.StringedView == SQLWhereLanguageDef.LanguageDef.funcOR)
+            {
+                var arr = new BsonArray();
+
+                foreach (object obj in function.Parameters)
+                    if (obj is Function)
+                        arr.Add(LimitFunctionToDocument((Function)obj));
+
+                return new BsonDocument("$or", arr);
+            }
+
+
+
+
+
+
+            return new BsonDocument();
         }
     }
 }

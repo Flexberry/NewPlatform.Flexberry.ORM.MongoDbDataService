@@ -40,7 +40,7 @@ namespace NewPlatform.BigDataTest
         
         private long ftimestamp;
         
-        private /*System.DateTime*/ string fdatetime;
+        private System.DateTime  fdatetime;
         
         private int fobject_id;
         
@@ -170,7 +170,7 @@ namespace NewPlatform.BigDataTest
         // *** Start programmer edit section *** (Event.datetime CustomAttributes)
 
         // *** End programmer edit section *** (Event.datetime CustomAttributes)
-        public virtual /*System.DateTime*/string datetime
+        public virtual System.DateTime datetime
         {
             get
             {

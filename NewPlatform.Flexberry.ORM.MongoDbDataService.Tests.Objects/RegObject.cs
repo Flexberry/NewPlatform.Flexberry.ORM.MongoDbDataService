@@ -26,8 +26,8 @@ namespace NewPlatform.BigDataTest
     // *** Start programmer edit section *** (RegObject CustomAttributes)
 
     // *** End programmer edit section *** (RegObject CustomAttributes)
-    [ClassStorage("objects")]
-    [PrimaryKeyStorage("_id")]
+    [ClassStorage("test_objectsIndexed")]
+    [PrimaryKeyStorage("uid")]
     [AutoAltered()]
     [Caption("Рубеж контроля")]
     [AccessType(ICSSoft.STORMNET.AccessType.none)]
