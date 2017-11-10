@@ -1,3 +1,3 @@
-# Flexberry ORM MondoDbDataService
+# Flexberry ORM MongoDbDataService
 
 MongoDB support by Flexberry ORM.
