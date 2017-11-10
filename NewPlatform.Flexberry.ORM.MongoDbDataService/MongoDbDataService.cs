@@ -880,12 +880,18 @@
         {
             if (value == null)
                 return BsonNull.Value;
+            else if (value.GetType() == typeof(bool))
+                return new BsonBoolean((bool)value);
             else if (value.GetType() == typeof(int))
                 return new BsonInt32((int)value);
             else if (value.GetType() == typeof(long))
                 return new BsonInt64((long)value);
+            else if (value.GetType() == typeof(double))
+                return new BsonDouble((double)value);
             else if (value.GetType() == typeof(string))
                 return new BsonString((string)value);
+            else if (value.GetType() == typeof(DateTime) || value.GetType() == typeof(ICSSoft.STORMNET.UserDataTypes.NullableDateTime))
+                return new BsonDateTime((DateTime)value);
             else if (value.GetType() == typeof(ICSSoft.STORMNET.KeyGen.KeyGuid))
                 return GetKeyValue(value);
             else
