@@ -94,7 +94,7 @@ namespace NewPlatform.Flexberry.ORM.Tests
         [TestMethod()]
         public void Guid1Test()
         {
-            var s = "MMvIKodsFEXrwGtg0/MTWw==";
+            var s = "CfswxOvvhE6+z96T2ToNpA==";
             var v = Convert.FromBase64String(s);
             Guid g = new Guid(v);
             var s1 = Convert.ToBase64String(g.ToByteArray());
@@ -140,7 +140,7 @@ namespace NewPlatform.Flexberry.ORM.Tests
                 new VariableDef(langdef.StringType, Information.ExtractPropertyPath<Event>(x => x.grz)), "З806ФП190")
                 );
 
-            var result = ((MongoDbDataService)ds).LimitFunctionToDocument(lf);
+            var result = ((MongoDbDataService)ds).LimitFunctionToDocument(lf, obj.GetType());
             //Assert.AreEqual(lc.ReturnTop, result.Length);
         }
 
@@ -181,6 +181,24 @@ namespace NewPlatform.Flexberry.ORM.Tests
                         );
             int count = ds.GetObjectsCount(lc);
  
+        }
+
+        [TestMethod()]
+        public void LimitFunctionWithPrimaryKeyTest()
+        {
+            var ds = DataServiceProvider.DataService;
+            var obj = new Event();
+
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(ds.GetInstanceId());
+
+
+            lc.LoadingTypes = new[] { obj.GetType() };
+            var langdef = ExternalLangDef.LanguageDef;
+            lc.LimitFunction = 
+                        langdef.GetFunction(langdef.funcEQ,
+                        new VariableDef(langdef.GuidType, Information.ExtractPropertyPath<Event>(x => x.__PrimaryKey)), Guid.Parse("{56edde8f-4a09-4463-b6da-1cd68d183415}"));
+            int count = ds.GetObjectsCount(lc);
+
         }
     }
 }

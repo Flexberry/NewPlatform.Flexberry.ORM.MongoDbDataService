@@ -108,7 +108,7 @@
 
             string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(type);
 
-            BsonDocument filter = LimitFunctionToDocument(customizationStruct.LimitFunction);
+            BsonDocument filter = LimitFunctionToDocument(customizationStruct.LimitFunction, type);
 
             return (int)collection.Find(filter).Count();
         }
@@ -370,6 +370,7 @@
         /// <returns></returns>
         private static string GetDataBaseName(MongoClient client)
         {
+            //ToDo: get from connection string 
             return client.Settings.Credentials.ToList()[0].Source;
         }
 
@@ -639,7 +640,7 @@
 
                 string primaryKeyStorageName = Information.GetPrimaryKeyStorageName(type);
 
-                BsonDocument filter = LimitFunctionToDocument(customizationStruct.LimitFunction);
+                BsonDocument filter = LimitFunctionToDocument(customizationStruct.LimitFunction, type);
 
                 List<BsonDocument> documents = collection.Find(filter).Limit(customizationStruct.ReturnTop).ToList();
 
@@ -892,6 +893,8 @@
                 return new BsonString((string)value);
             else if (value.GetType() == typeof(DateTime) || value.GetType() == typeof(ICSSoft.STORMNET.UserDataTypes.NullableDateTime))
                 return new BsonDateTime((DateTime)value);
+            else if (value.GetType() == typeof(Guid)) 
+                return new BsonBinaryData(((Guid)value).ToByteArray(), BsonBinarySubType.UuidStandard);
             else if (value.GetType() == typeof(ICSSoft.STORMNET.KeyGen.KeyGuid))
                 return GetKeyValue(value);
             else
@@ -917,14 +920,14 @@
             UpdateObjects(ref objects, new DataObjectCache(), AlwaysThrowException);
         }
 
-        public BsonDocument LimitFunctionToDocument(Function function)
+        public BsonDocument LimitFunctionToDocument(Function function, Type type)
         {
             if (function == null)
                 return new BsonDocument();
 
 
             string attributeName = null;
-            object value = null;
+            BsonValue value = null;
 
             foreach (object obj in function.Parameters)
             {
@@ -933,14 +936,16 @@
 
                 else if (obj is VariableDef)
                 {
-                     attributeName = ((VariableDef)obj).StringedView;
-                    //if (name != "STORMMainObjectKey")
+                    attributeName = ((VariableDef)obj).StringedView;
+                    if (attributeName == "STORMMainObjectKey" || attributeName == "__PrimaryKey")
+                        attributeName = Information.GetPrimaryKeyStorageName(type);
+
                 }
                 //else if (obj is Function)
                     //value= LimitFunctionToDocument((Function)obj);
                 else
                 {
-                    value = obj;
+                    value = ToBsonValue(obj);
                 }
 
 
@@ -968,7 +973,7 @@ Matches none of the values specified in an array.
 
             if (function.FunctionDef.StringedView == SQLWhereLanguageDef.LanguageDef.funcEQ)
             {
-                return new BsonDocument(attributeName, value.ToString());
+                return new BsonDocument(attributeName, value);
             }
             if (function.FunctionDef.StringedView == SQLWhereLanguageDef.LanguageDef.funcG)
             {
@@ -984,7 +989,7 @@ Matches none of the values specified in an array.
 
                 foreach (object obj in function.Parameters)
                     if (obj is Function)
-                        arr.Add(LimitFunctionToDocument((Function)obj));
+                        arr.Add(LimitFunctionToDocument((Function)obj, type));
 
                 return new BsonDocument("$and", arr);
             }
@@ -994,7 +999,7 @@ Matches none of the values specified in an array.
 
                 foreach (object obj in function.Parameters)
                     if (obj is Function)
-                        arr.Add(LimitFunctionToDocument((Function)obj));
+                        arr.Add(LimitFunctionToDocument((Function)obj, type));
 
                 return new BsonDocument("$or", arr);
             }
