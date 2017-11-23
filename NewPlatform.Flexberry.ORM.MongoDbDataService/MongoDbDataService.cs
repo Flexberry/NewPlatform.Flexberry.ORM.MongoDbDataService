@@ -15,6 +15,7 @@
     using ICSSoft.STORMNET.KeyGen;
     using System.Collections.Generic;
     using ICSSoft.STORMNET.Windows.Forms;
+    using System.Text.RegularExpressions;
 
     /// <summary>
     /// Flexberry ORM DataService for MongoDB Storage.
@@ -368,10 +369,14 @@
         /// </summary>
         /// <param name="client"></param>
         /// <returns></returns>
-        private static string GetDataBaseName(MongoClient client)
+        private string GetDataBaseName(MongoClient client)
         {
-            //ToDo: get from connection string 
-            return client.Settings.Credentials.ToList()[0].Source;
+            var  m = Regex.Match(CustomizationString, @"(?<=\/)\w+?$");
+
+            if (m.Success)
+                return m.Value;
+
+            throw new Exception("CustomizationString do not include dataBase name.");
         }
 
         public string[] GetPropertiesInExpression(string expression, string namespacewithpoint)
@@ -642,7 +647,33 @@
 
                 BsonDocument filter = LimitFunctionToDocument(customizationStruct.LimitFunction, type);
 
-                List<BsonDocument> documents = collection.Find(filter).Limit(customizationStruct.ReturnTop).ToList();
+                var r = collection.Find(filter);
+
+                if (customizationStruct.RowNumber != null)
+                {
+                    var rn = customizationStruct.RowNumber;
+                    r = r.Skip(rn.StartRow).Limit(rn.EndRow - rn.StartRow);
+                }
+
+                if (customizationStruct.ColumnsSort != null)
+                {
+                    var sortbuilder = Builders<BsonDocument>.Sort;
+                    SortDefinition<BsonDocument> sort = null;
+                    foreach (var s in customizationStruct.ColumnsSort)
+                    {
+                        if (s.Sort == SortOrder.Asc)
+                            sort = sort == null?sortbuilder.Ascending(s.Name):sort.Ascending(s.Name);
+                        else if (s.Sort == SortOrder.Desc)
+                            sort = sort == null ? sortbuilder.Descending(s.Name) : sort.Descending(s.Name);
+                    }
+
+                    if (sort!=null)
+                        r = r.Sort(sort);
+                }
+
+                
+
+                List<BsonDocument> documents = r.Limit(customizationStruct.ReturnTop).ToList();
 
                 DataObject[] result = new DataObject[documents.Count];
 

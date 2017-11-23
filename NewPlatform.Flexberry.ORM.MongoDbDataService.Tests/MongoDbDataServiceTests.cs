@@ -53,7 +53,7 @@ namespace NewPlatform.Flexberry.ORM.Tests
 
             var ds = DataServiceProvider.DataService;
 
-            obj.grz = "23gggqqq";
+            obj.grz = "2";
 
             ds.UpdateObject(obj);
 
@@ -198,6 +198,39 @@ namespace NewPlatform.Flexberry.ORM.Tests
                         langdef.GetFunction(langdef.funcEQ,
                         new VariableDef(langdef.GuidType, Information.ExtractPropertyPath<Event>(x => x.__PrimaryKey)), Guid.Parse("{56edde8f-4a09-4463-b6da-1cd68d183415}"));
             int count = ds.GetObjectsCount(lc);
+
+        }
+
+        [TestMethod()]
+        public void RowNumberTest()
+        {
+            var ds = DataServiceProvider.DataService;
+            var obj = new Event();
+
+            var view = new View(obj.GetType(), View.ReadType.OnlyThatObject);
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(ds.GetInstanceId());
+            lc.LoadingTypes = new[] { obj.GetType() };
+            lc.View = view;
+            lc.ReturnTop = 100;
+            var rn = new RowNumberDef(2,4);
+            lc.RowNumber = rn;
+
+            var result = ds.LoadObjects(lc);
+            Assert.AreEqual(rn.EndRow-rn.StartRow, result.Length);
+        }
+
+        [TestMethod()]
+        public void OrderTest()
+        {
+            var ds = DataServiceProvider.DataService;
+            var obj = new Event();
+
+            var view = new View(obj.GetType(), View.ReadType.OnlyThatObject);
+            LoadingCustomizationStruct lc = new LoadingCustomizationStruct(ds.GetInstanceId());
+            lc.LoadingTypes = new[] { obj.GetType() };
+            lc.View = view;
+            lc.ColumnsSort = new[] { new ColumnsSortDef("grz", SortOrder.Asc) };
+            var result = ds.LoadObjects(lc);
 
         }
     }
