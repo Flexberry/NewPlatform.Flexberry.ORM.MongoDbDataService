@@ -242,6 +242,7 @@
         public void LoadObject(View dataObjectView, DataObject obj, bool clearDataObject, bool checkExistingObject, DataObjectCache DataObjectCache)
         {
             IMongoDatabase database = GetDataBase();
+            
             IMongoCollection<BsonDocument> collection = GetCollection(obj.GetType(), database);
             Type type = obj.GetType();
 
@@ -284,9 +285,12 @@
                     if (propertyType.IsSubclassOf(typeof(DataObject)))
                     {
                         value = GetDocumentProperty(document, propertyName);
-                        DataObject master = cache.CreateDataObject(propertyType, propertyName);
-                        LoadObject(master);
-                        Information.SetPropValueByName(dataObject, propertyName, master);
+                        if (value != null)
+                        {
+                            DataObject master = cache.CreateDataObject(propertyType, value);
+                            LoadObject(master);
+                            Information.SetPropValueByName(dataObject, propertyName, master);
+                        }
                     }
                     else if (propertyType.IsSubclassOf(typeof(DetailArray)))
                     {
@@ -328,7 +332,8 @@
             else if (document[propertyName].IsString)
                 value = document[propertyName].AsString;
             else if (document[propertyName].IsGuid)
-                value = document[propertyName].AsGuid;
+                //value = document[propertyName].AsGuid;
+                value = new Guid(document[propertyName].AsByteArray);
             else if (document[propertyName].IsValidDateTime)
                 value = document[propertyName].ToUniversalTime();
             else if (document[propertyName].IsDouble)
@@ -890,7 +895,11 @@
 
                         BsonDocument doc = new BsonDocument();
 
-                        foreach (string property in properties)
+                        var details = properties.Where(p => Information.GetPropertyType(objType, p).IsSubclassOf(typeof(DetailArray)));
+
+                        var ownProperties = properties.Except(details);
+
+                        foreach (string property in ownProperties)
                         {
                             object value = Information.GetPropValueByName(obj, property);
                             string propertyToStore = property;
@@ -898,6 +907,10 @@
                             {
                                 if (property == "__PrimaryKey")
                                     propertyToStore = Information.GetPrimaryKeyStorageName(objType);
+                                if (Information.GetPropertyType(objType, property).IsSubclassOf(typeof(DataObject))
+                                    && value != null)
+                                    value = (value as DataObject).__PrimaryKey;
+
                                 doc.Add(propertyToStore, ToBsonValue(value));
                             }
                         }
