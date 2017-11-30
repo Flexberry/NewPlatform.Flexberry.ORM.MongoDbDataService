@@ -260,7 +260,9 @@
 
             var dataObjectCache = new DataObjectCache();
 
-            var view = new View(type, View.ReadType.OnlyThatObject);
+
+            var view = dataObjectView ?? new View(type, View.ReadType.OnlyThatObject);
+
             Type doType = obj.GetType();
 
             LoadingCustomizationStruct lc = new LoadingCustomizationStruct(GetInstanceId());
@@ -269,6 +271,24 @@
             DataObjectCache cache = new DataObjectCache();
             FillObject(obj, doc, view, cache);
 
+            foreach (DetailInView detailInView in view.Details)
+            {
+                var dlc = new LoadingCustomizationStruct(GetInstanceId());
+                var detailView = detailInView.View;
+                var detailType = detailView.DefineClassType;
+                dlc.LoadingTypes = new[] {detailType};
+                dlc.View = detailView;
+                var langdef = ExternalLangDef.LanguageDef;
+
+                dlc.LimitFunction =
+                            langdef.GetFunction(langdef.funcEQ,
+                            new VariableDef(langdef.GuidType, Information.GetAgregatePropertyName(detailType)), obj.__PrimaryKey);
+
+                var details = LoadObjects(dlc);
+                var detailArray = doType.GetProperty(detailInView.Name).GetValue(obj) as DetailArray;
+                detailArray.AddRange(details);
+                //Information.SetPropValueByName(obj, detailInView.Name, details);
+            }
         }
 
         private void FillObject(DataObject dataObject, BsonDocument document, View view, DataObjectCache cache)
@@ -294,6 +314,8 @@
                     }
                     else if (propertyType.IsSubclassOf(typeof(DetailArray)))
                     {
+
+
                     }
                     else if (!propertyName.Contains("."))
                     {
@@ -303,7 +325,7 @@
                 }
             }
 
-            foreach (var detailInView in view.Details)
+            /*foreach (var detailInView in view.Details)
             {
                 var detailArray = (DetailArray) Activator.CreateInstance(Information.GetPropertyType(dataObjectType, detailInView.Name));
                 var detailType = detailInView.View.DefineClassType;
@@ -319,7 +341,7 @@
 
                 detailArray.AddRange(details);
 
-            }
+            }*/
         }
 
         private static object GetDocumentProperty(BsonDocument document, string propertyName)
@@ -916,6 +938,17 @@
                         }
 
                         collection.InsertOne(doc);
+
+                        foreach (string property in details)
+                        {
+                            var value = Information.GetPropValueByName(obj, property) as DetailArray;
+                            if (value != null)
+                            {
+                                var dataObjects = value.Cast<DataObject>().ToArray();
+                                UpdateObjects(ref dataObjects);
+                            }
+                        }
+
                         break;
                 }
             }
